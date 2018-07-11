@@ -1,7 +1,7 @@
 import xgboost as xgb
 import numpy as np
 import pandas as pd
-# import xgboostExplainer as xgb_exp
+import xgboostExplainer as xgb_exp
 
 
 def sigmoid(x):
@@ -30,5 +30,7 @@ def train():
 # train the model
 bst = train()
 
+df = xgb_exp.parse_trees(bst)
+
 # xgb importance
-xgb.plot_importance(bst)
+# xgb.plot_importance(bst)
