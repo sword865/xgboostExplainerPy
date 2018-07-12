@@ -14,8 +14,11 @@ def train():
     :return: a gbm model
     :rtype: xgb.Booster
     """
-    dtrain = xgb.DMatrix('./train.libsvm')
-    dtest = xgb.DMatrix('./test.libsvm')
+    feature_map = ["satisfaction_level", "last_evaluation", "number_project",
+                   "average_montly_hours", "time_spend_company",
+                   "Work_accident", "promotion_last_5years", "sales", "salary"]
+    dtrain = xgb.DMatrix('./train.libsvm', feature_names=feature_map)
+    dtest = xgb.DMatrix('./test.libsvm', feature_names=feature_map)
     params = {"objective": "binary:logistic",
               'silent': 1,
               'eval_metric': 'auc',
@@ -30,7 +33,15 @@ def train():
 # train the model
 bst = train()
 
-df = xgb_exp.parse_trees(bst)
+explainer = xgb_exp.build_explainer(bst, "binary", 0.5, 1.0)
+
+feature_map = ["satisfaction_level", "last_evaluation", "number_project",
+               "average_montly_hours", "time_spend_company",
+               "Work_accident", "promotion_last_5years", "sales", "salary"]
+dtest = xgb.DMatrix('./test.libsvm',
+                    feature_names=feature_map).slice([1, 2, 3])
+dtest.feature_names = feature_map
+pred_breakdown = xgb_exp.explain_prediction(bst, explainer, dtest)
 
 # xgb importance
 # xgb.plot_importance(bst)
