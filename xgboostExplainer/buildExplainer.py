@@ -24,31 +24,70 @@ def build_explainer(bst, train_data, type="binary", base_score=0.5,
     print("Creating the trees of the xgboost model...")
     trees = parse_trees(bst)
     print("Getting the leaf nodes for the training set observations...")
-    train_nodes = bst.predict(train_data, pred_leaf=True)
-
+    # train_nodes = bst.predict(train_data, pred_leaf=True)
     print("Building the Explainer...")
     print("STEP 1 of 2")
     tree_list = get_trees_stats(trees, type, base_score)
     print("STEP 2 of 2")
-
-    explainer = build_explainer(tree_list, bst.feature_names)
+    explainer = build_explainer_from_tree_list(tree_list, bst.feature_names)
     print("DONE!")
     return explainer
 
 
 def build_explainer_from_tree_list(tree_list, col_names):
-    list_names = col_names + ['intercept', 'leaf','tree']
-    num_trees = len(tree_list)
+    list_names = col_names + ['intercept', 'leaf', 'tree']
+    # num_trees = len(tree_list)
+    tree_list_breakdown = pd.DataFrame(columns=list_names)
     for tree in tree_list:
-        pass
+        tree_breakdown = get_leaf_breakdown(tree, col_names)
+        tree_breakdown["tree"] = tree.iloc[0]["tree"]
+        tree_list_breakdown.append(tree_breakdown)
+    return tree_list_breakdown
 
 
 def get_tree_breakdown(tree, col_names):
-    pass
+    list_names = col_names + ['intercept', 'leaf', 'tree']
+    leaves = tree[tree["is_leaf"]==True]
+    tree_breakdown = pd.DataFrame(columns=list_names)
+    for leaf in leaves:
+        leaf_breakdown = get_leaf_breakdown(tree, leaf, col_names)
+        leaf_breakdown["leaf"] = leaf
+        tree_breakdown.append(leaf_breakdown)
+    return tree_breakdown
 
 
-def get_leaf_breakdown():
-    pass
+def get_leaf_breakdown(tree, leaf, col_names):
+    """
+
+    :param tree:
+    :param leaf:
+    :param col_names:
+    :return:
+    """
+    impacts = {}
+    path = find_path(tree, leaf)
+    reduced_tree: pd.DataFrame = tree.query("node in @path")[
+        ["feature", "uplift_weight"]]
+    impacts["intercept"] = reduced_tree.iloc[0]["uplift_weight"]
+    reduced_tree["uplift_weight"] = reduced_tree["uplift_weight"].shift(-1)
+    tmp = reduced_tree.groupby("feature")["uplift_weight"].sum()
+    tmp = tmp[:-1]
+    for fname in tmp.index:
+        impacts[fname] = tmp[fname]
+    return tmp
+
+
+def find_path(tree, cur_node, path=None):
+    if path is None:
+        path = []
+    while cur_node > 0:
+        path.append(cur_node)
+        cur_label = tree[tree["node"] == cur_node, "id"]
+        cur_node = [tree[tree["yes"] == cur_label, "node"],
+                    tree[tree["no"] == cur_label, "node"]]
+    path.append(0)
+    path.sort()
+    return path
 
 
 def get_trees_stats(trees, type, base_score):
@@ -104,7 +143,6 @@ def get_trees_stats(trees, type, base_score):
         cur_tree["uplift_weight"] = cur_tree["weight"] - cur_tree["previous_weight"]
         tree_lst.append(cur_tree)
     return tree_lst
-
 
 
 def parse_trees(bst=None):
