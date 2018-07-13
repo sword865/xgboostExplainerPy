@@ -82,7 +82,8 @@ def get_leaf_breakdown(tree, leaf, col_names):
     impacts["intercept"] = reduced_tree.iloc[0]["uplift_weight"]
     reduced_tree["uplift_weight"] = reduced_tree["uplift_weight"].shift(-1)
     tmp = reduced_tree.groupby("feature")["uplift_weight"].sum()
-    tmp = tmp[:-1]
+    # na will not sum up
+    # tmp = tmp[:-1]
     for fname in tmp.index:
         impacts[fname] = tmp[fname]
     return impacts
@@ -131,7 +132,7 @@ def get_trees_stats(trees_input, type, base_score, lmda):
     trees["previous_weight"] = base_weight
     trees = trees.set_value(0, "previous_weight", 0)
 
-    trees["G"] = -trees["weight"] * trees["H"]
+    trees["G"] = -trees["weight"] * (trees["H"] + lmda)
     tree_lst = []
     t = 0
     idxs = trees["tree"].unique()

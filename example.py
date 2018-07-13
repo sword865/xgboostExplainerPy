@@ -1,5 +1,10 @@
 import xgboost as xgb
 import xgboostExplainer as xgb_exp
+import numpy as np
+
+
+def sigmoid(x):
+    return 1/(1+np.exp(-x))
 
 
 feature_map = ["satisfaction_level", "last_evaluation", "number_project",
@@ -25,3 +30,5 @@ sample = xgb.DMatrix('./tests/test.libsvm',
                      feature_names=feature_map).slice([802])
 sample.feature_names = feature_map
 pred_breakdown = xgb_exp.explain_prediction(bst, explainer, sample)
+
+print(sigmoid(pred_breakdown.sum(axis=1)))
